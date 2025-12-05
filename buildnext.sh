@@ -114,7 +114,6 @@ declare -A ksu_configs=(
     ["CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG"]="y"
     ["CONFIG_KSU_SUSFS_OPEN_REDIRECT"]="y"
     ["CONFIG_KSU_SUSFS_SUS_MAP"]="y"
-#代理优化(
     ["CONFIG_BPF_STREAM_PARSER"]="y"
     ["CONFIG_NETFILTER_XT_MATCH_ADDRTYPE"]="y"
     ["CONFIG_NETFILTER_XT_SET"]="y"
@@ -138,7 +137,6 @@ declare -A ksu_configs=(
     ["CONFIG_IP_SET_LIST_SET"]="y"
     ["CONFIG_IP6_NF_NAT"]="y"
     ["CONFIG_IP6_NF_TARGET_MASQUERADE"]="y"
-#bbg相关
     ["CONFIG_BBG"]="y"
     ["CONFIG_LSM"]="\"lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,baseband_guard\""
     ["CONFIG_BBG_BLOCK_RECOVERY"]="y"
