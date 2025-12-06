@@ -58,7 +58,6 @@ cp ./kernel-config/susfs/50_add_susfs_in_gki-android12-5.10.patch .
 cp ./kernel-config/susfs/10_enable_susfs_for_ksu.patch ./KernelSU-Next
 cp ./kernel_patches/next/scope_min_manual_hooks_v1.4.patch .
 cp -r ./kernel-config/anykernel .
-cp -r ./kernel-config/tracepoint_hook .
 
 # 复制文件系统相关文件
 cp -r ./kernel-config/susfs/fs/* ./fs/
@@ -87,9 +86,6 @@ patch -p1 < ./fix_sucompat.c.patch
 patch -p1 < ./fix_kernel_compat.c.patch
 cd ..
 
-#由于部分机型的vintf兼容性检测规则，在开启CONFIG_IP6_NF_NAT后开机会出现"您的设备内部出现了问题。请联系您的设备制造商了解详情。"的提示，故添加一个配置修复补丁，在编译内核时隐藏CONFIG_IP6_NF_NAT=y但不影响对应功能编译
-cp ./tracepoint_hook/config.patch ./
-patch -p1 -F 3 < config.patch || true
 
 echo ">>> 配置内核选项..."
 DEFCONFIG_FILE=arch/arm64/configs/gki_defconfig
