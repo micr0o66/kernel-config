@@ -51,40 +51,50 @@ fi
 [ -d "Baseband-guard" ] && rm -rf Baseband-guard
 wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash
 
-# 应用 SUSFS 相关补丁
 echo ">>> 应用 SUSFS 及 hook 补丁..."
-# 复制补丁文件
-cp ./kernel-config/susfs/50_add_susfs_in_gki-android12-5.10.patch .
-cp ./kernel-config/susfs/10_enable_susfs_for_ksu.patch ./KernelSU-Next
-cp ./kernel_patches/next/scope_min_manual_hooks_v1.4.patch .
+
+# === 定义路径 ===
+SUSFS_CFG="./kernel-config/susfs"
+KSU_NEXT="./KernelSU-Next"
+PATCH_NEXT="./kernel_patches/next"
+FIX_PATCHES="$PATCH_NEXT/susfs_fix_patches/v1.5.12"
+
+# === 复制补丁文件 ===
+cp "$SUSFS_CFG/50_add_susfs_in_gki-android12-5.10.patch" .
+cp "$SUSFS_CFG/10_enable_susfs_for_ksu.patch" "$KSU_NEXT/"
+cp "$PATCH_NEXT/scope_min_manual_hooks_v1.4.patch" .
 cp -r ./kernel-config/anykernel .
 
-# 复制文件系统相关文件
-cp -r ./kernel-config/susfs/fs/* ./fs/
-cp -r ./kernel-config/susfs/include/linux/* ./include/linux/
+# === 复制 SUSFS 文件系统相关内容 ===
+cp -r "$SUSFS_CFG/fs/"* ./fs/
+cp -r "$SUSFS_CFG/include/linux/"* ./include/linux/
 
-# 应用补丁
-cd ./KernelSU-Next
+# === 应用 KernelSU 相关补丁 ===
+cd "$KSU_NEXT"
 patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
 cd ..
+
 patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || true
 
-# 应用隐藏补丁
-cp ./kernel_patches/69_hide_stuff.patch ./
+# === 应用隐藏补丁 ===
+cp ./kernel_patches/69_hide_stuff.patch .
 patch -p1 -F 3 < 69_hide_stuff.patch
 patch -p1 < scope_min_manual_hooks_v1.4.patch
 
-#susfs修复补丁
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_apk_sign.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_core_hook.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch ./KernelSU-Next/
-cd ./KernelSU-Next
+# === SUSFS 修复补丁 ===
+cp "$FIX_PATCHES/fix_apk_sign.c.patch" "$KSU_NEXT/"
+cp "$FIX_PATCHES/fix_core_hook.c.patch" "$KSU_NEXT/"
+cp "$FIX_PATCHES/fix_sucompat.c.patch" "$KSU_NEXT/"
+cp "$FIX_PATCHES/fix_kernel_compat.c.patch" "$KSU_NEXT/"
+
+cd "$KSU_NEXT"
 patch -p1 -F 3 < fix_apk_sign.c.patch
-patch -p1 --fuzz=3 < ./fix_core_hook.c.patch
-patch -p1 < ./fix_sucompat.c.patch
-patch -p1 < ./fix_kernel_compat.c.patch
+patch -p1 --fuzz=3 < fix_core_hook.c.patch
+patch -p1 < fix_sucompat.c.patch
+patch -p1 < fix_kernel_compat.c.patch
 cd ..
+
+echo ">>> 所有补丁应用完成！"
 
 
 echo ">>> 配置内核选项..."
