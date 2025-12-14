@@ -24,6 +24,19 @@ export KSU_VERSION
 sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 cd ..
 
+# 克隆susfs
+echo ">>> 克隆补丁仓库..."
+# Clone/update susfs4ksu
+if [ -d "susfs4ksu" ]; then
+  cd susfs4ksu
+  git reset --hard HEAD
+  git clean -fdx
+  git pull
+  cd ..
+else
+  git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.10 --depth=1
+fi
+
 # 克隆所需补丁仓库
 echo ">>> 克隆补丁仓库..."
 # Clone/update susfs4ksu
@@ -54,42 +67,41 @@ wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash
 # 应用 SUSFS 相关补丁
 echo ">>> 应用 SUSFS 及 hook 补丁..."
 # 复制补丁文件
-cp ./kernel-config/susfs/50_add_susfs_in_gki-android12-5.10.patch .
-cp ./kernel-config/susfs/10_enable_susfs_for_ksu.patch ./KernelSU-Next
-cp ./kernel_patches/next/scope_min_manual_hooks_v1.4.patch .
+cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.10.patch .
+cp ./susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next
+#cp ./kernel_patches/next/scope_min_manual_hooks_v1.4.patch .
 cp -r ./kernel-config/anykernel .
 cp -r ./kernel-config/tracepoint_hook .
 
 # 复制文件系统相关文件
-cp -r ./kernel-config/susfs/fs/* ./fs/
-cp -r ./kernel-config/susfs/include/linux/* ./include/linux/
+cp -r ./susfs4ksu/kernel_patches/fs/* ./fs/
+cp -r ./susfs4ksu/kernel_patches/include/linux/* ./include/linux/
 
 # 应用补丁
 cd ./KernelSU-Next
 patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
 cd ..
-patch -p1 < 50_add_susfs_in_gki-android12-5.10.patch || true
+patch -p1 < 50_add_susfs_in_gki-android13-5.10.patch || true
 
 # 应用隐藏补丁
 cp ./kernel_patches/69_hide_stuff.patch ./
 patch -p1 -F 3 < 69_hide_stuff.patch
-patch -p1 < scope_min_manual_hooks_v1.4.patch
+#patch -p1 < scope_min_manual_hooks_v1.4.patch
 
 #susfs修复补丁
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_apk_sign.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_core_hook.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch ./KernelSU-Next/
-cd ./KernelSU-Next
-patch -p1 -F 3 < fix_apk_sign.c.patch
-patch -p1 --fuzz=3 < ./fix_core_hook.c.patch
-patch -p1 < ./fix_sucompat.c.patch
-patch -p1 < ./fix_kernel_compat.c.patch
-cd ..
+#cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_core_hook.c.patch ./KernelSU-Next/
+#cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch ./KernelSU-Next/
+#cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch ./KernelSU-Next/
+#cd ./KernelSU-Next
+#patch -p1 -F 3 < fix_apk_sign.c.patch
+#patch -p1 --fuzz=3 < ./fix_core_hook.c.patch
+#patch -p1 < ./fix_sucompat.c.patch
+#patch -p1 < ./fix_kernel_compat.c.patch
+#cd ..
 
 #由于部分机型的vintf兼容性检测规则，在开启CONFIG_IP6_NF_NAT后开机会出现"您的设备内部出现了问题。请联系您的设备制造商了解详情。"的提示，故添加一个配置修复补丁，在编译内核时隐藏CONFIG_IP6_NF_NAT=y但不影响对应功能编译
-cp ./tracepoint_hook/config.patch ./
-patch -p1 -F 3 < config.patch || true
+#cp ./tracepoint_hook/config.patch ./
+#patch -p1 -F 3 < config.patch || true
 
 echo ">>> 配置内核选项..."
 DEFCONFIG_FILE=arch/arm64/configs/gki_defconfig
@@ -180,7 +192,7 @@ echo
 make CC="ccache clang" CXX="ccache clang++" LLVM=1 LLVM_IAS=1 O=out $DEFCONFIG
 make CC="ccache clang" CXX="ccache clang++" LLVM=1 LLVM_IAS=1 O=out menuconfig
 make CC='ccache clang' CXX="ccache clang++" LLVM=1 LLVM_IAS=1 O=out $THREAD \
-    LOCALVERSION=-Android12-9-v$(date +%Y%m%d-%H) \
+    LOCALVERSION=-Android13-9-v$(date +%Y%m%d-%H) \
     CONFIG_LOCALVERSION_AUTO=n \
     CONFIG_MEDIATEK_CPUFREQ_DEBUG=m CONFIG_MTK_IPI=m CONFIG_MTK_TINYSYS_MCUPM_SUPPORT=m \
     CONFIG_MTK_MBOX=m CONFIG_RPMSG_MTK=m CONFIG_LTO_CLANG=y CONFIG_LTO_NONE=n \
@@ -207,5 +219,5 @@ cd tmp
 7za a -mx9 tmp.zip *
 cd ..
 rm *.zip
-cp -fp tmp/tmp.zip Android12-$(grep "# Linux/" out/.config | cut -d " " -f 3)-v$(date +%Y%m%d-%H).zip
+cp -fp tmp/tmp.zip Android13-$(grep "# Linux/" out/.config | cut -d " " -f 3)-v$(date +%Y%m%d-%H).zip
 rm -rf tmp
