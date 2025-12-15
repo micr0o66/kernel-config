@@ -69,7 +69,7 @@ echo ">>> 应用 SUSFS 及 hook 补丁..."
 # 复制补丁文件
 cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.10.patch .
 cp ./susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next
-#cp ./kernel_patches/next/scope_min_manual_hooks_v1.4.patch .
+cp ./kernel_patches/next/scope_min_manual_hooks_v1.6.patch .
 cp -r ./kernel-config/anykernel .
 cp -r ./kernel-config/tracepoint_hook .
 
@@ -86,18 +86,29 @@ patch -p1 < 50_add_susfs_in_gki-android13-5.10.patch || true
 # 应用隐藏补丁
 cp ./kernel_patches/69_hide_stuff.patch ./
 patch -p1 -F 3 < 69_hide_stuff.patch
-#patch -p1 < scope_min_manual_hooks_v1.4.patch
+patch -p1 < scope_min_manual_hooks_v1.6.patch
 
 #susfs修复补丁
-#cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_core_hook.c.patch ./KernelSU-Next/
-#cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch ./KernelSU-Next/
-#cp ./kernel_patches/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch ./KernelSU-Next/
-#cd ./KernelSU-Next
-#patch -p1 -F 3 < fix_apk_sign.c.patch
-#patch -p1 --fuzz=3 < ./fix_core_hook.c.patch
-#patch -p1 < ./fix_sucompat.c.patch
-#patch -p1 < ./fix_kernel_compat.c.patch
-#cd ..
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/Makefile.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/allowlist.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/apk_sign.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/kernel_umount.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/ksu.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/ksud.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/selinux.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/sucompat.c.patch ./KernelSU-Next/
+cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/supercalls.c.patch ./KernelSU-Next/
+cd ./KernelSU-Next
+patch -p1 < ./Makefile.patch
+patch -p1 < ./allowlist.c.patch
+patch -p1 < ./apk_sign.c.patch
+patch -p1 < ./kernel_umount.c.patch
+patch -p1 < ./ksu.c.patch
+patch -p1 < ./ksud.c.patch
+patch -p1 < ./selinux.c.patch
+patch -p1 < ./sucompat.c.patch
+patch -p1 < ./supercalls.c.patch
+cd ..
 
 #由于部分机型的vintf兼容性检测规则，在开启CONFIG_IP6_NF_NAT后开机会出现"您的设备内部出现了问题。请联系您的设备制造商了解详情。"的提示，故添加一个配置修复补丁，在编译内核时隐藏CONFIG_IP6_NF_NAT=y但不影响对应功能编译
 #cp ./tracepoint_hook/config.patch ./
@@ -109,24 +120,18 @@ DEFCONFIG_FILE=arch/arm64/configs/gki_defconfig
 # 定义基础 SUSFS/KSU 配置
 declare -A ksu_configs=(
     ["CONFIG_KSU"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_SU"]="n"
     ["CONFIG_KSU_KPROBES_HOOK"]="n"
-    ["CONFIG_KSU_SUSFS"]="y"
+    ["CONFIG_KSU_SUSFS"]="y" #susfs
     ["CONFIG_KSU_SUSFS_SUS_PATH"]="y"
     ["CONFIG_KSU_SUSFS_SUS_MOUNT"]="y"
-    ["CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT"]="y"
-    ["CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT"]="y"
+    ["CONFIG_KSU_SUSFS_SUS_MOUNT_MNT_ID_REORDER"]="n"
     ["CONFIG_KSU_SUSFS_SUS_KSTAT"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_OVERLAYFS"]="n"
+    ["CONFIG_KSU_SUSFS_SUS_MAPS"]="y"
+    ["CONFIG_KSU_SUSFS_SUS_PROC_FD_LINK"]="n"
+    ["CONFIG_KSU_SUSFS_SUS_MEMFD"]="n"
     ["CONFIG_KSU_SUSFS_TRY_UMOUNT"]="y"
-    ["CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT"]="y"
     ["CONFIG_KSU_SUSFS_SPOOF_UNAME"]="y"
-    ["CONFIG_KSU_SUSFS_ENABLE_LOG"]="y"
-    ["CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS"]="y"
-    ["CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG"]="y"
-    ["CONFIG_KSU_SUSFS_OPEN_REDIRECT"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_MAP"]="y"
-    ["CONFIG_BPF_STREAM_PARSER"]="y"
+    ["CONFIG_KSU_KSU_SUSFS_ENABLE_LOG"]="y"
     ["CONFIG_NETFILTER_XT_MATCH_ADDRTYPE"]="y"
     ["CONFIG_NETFILTER_XT_SET"]="y"
     ["CONFIG_IP_SET"]="y"
