@@ -17,29 +17,71 @@ ZIMAGE_DIR="$KERNEL_DIR/out/arch/arm64/boot"
 echo ">>> 拉取 kernelsu_next 并设置版本..."
 # 如果 KernelSU 目录存在则删除
 [ -d "KernelSU" ] && rm -rf KernelSU
-curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s dev
 cd KernelSU-Next
 KSU_VERSION="$(expr "$(git rev-list --count HEAD)" "+" 10606)"
 export KSU_VERSION
 sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 cd ..
 
-# 克隆susfs
-echo ">>> 克隆补丁仓库..."
-# Clone/update susfs4ksu
-if [ -d "susfs4ksu" ]; then
-  cd susfs4ksu
-  git reset --hard HEAD
-  git clean -fdx
-  git pull
+susfs=true
+if [ $susfs = "true" ]; then
+  # 克隆susfs
+  echo ">>> 克隆补丁仓库..."
+  # Clone/update susfs4ksu
+  if [ -d "susfs4ksu" ]; then
+    cd susfs4ksu
+    git reset --hard HEAD
+    git clean -fdx
+    git pull
+    cd ..
+  else
+    git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.10 --depth=1
+  fi
+    
+    # Clone/update ksun_patch
+  if [ -d "kernel_patches" ]; then
+    cd kernel_patches
+    git reset --hard HEAD
+    git clean -fdx
+    git pull
+    cd ..
+  else
+    git clone https://github.com/TheWildJames/kernel_patches.git --depth=1
+  fi
+  
+  # 应用 SUSFS 相关补丁
+  echo ">>> 应用 SUSFS 及 hook 补丁..."
+  # 复制补丁文件
+  cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.10.patch .
+  cp ./susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next
+  cd ./KernelSU-Next
+  patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+  cd ..
+  patch -p1 < 50_add_susfs_in_gki-android13-5.10.patch || true
+
+  # 复制文件系统相关文件
+  cp -r ./susfs4ksu/kernel_patches/fs/* ./fs/
+  cp -r ./susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+
+  # 应用隐藏补丁
+  cp ./kernel_patches/69_hide_stuff.patch ./
+  patch -p1 -F 3 < 69_hide_stuff.patch
+
+  #susfs修复补丁
+  cd ./KernelSU-Next
+  for patch in ../kernel_patches/next/susfs_fix_patches/v2.0.0/*.patch; do
+    [ -f "$patch" ] || continue
+    patch -p1 < "$patch"
+  done
   cd ..
 else
-  git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.10 --depth=1
+  echo "skip susfs"
 fi
 
-# 克隆所需补丁仓库
-echo ">>> 克隆补丁仓库..."
-# Clone/update susfs4ksu
+# 克隆anykernel3
+echo ">>> 克隆anykernel3..."
+# anykernel3
 if [ -d "kernel-config" ]; then
   cd kernel-config
   git reset --hard HEAD
@@ -49,69 +91,15 @@ if [ -d "kernel-config" ]; then
 else
   git clone https://github.com/micr0o66/kernel-config.git --depth=1
 fi
+cp -r ./kernel-config/anykernel .
 
-# Clone/update ksun_patch
-if [ -d "kernel_patches" ]; then
-  cd kernel_patches
-  git reset --hard HEAD
-  git clean -fdx
-  git pull
-  cd ..
-else
-  git clone https://github.com/TheWildJames/kernel_patches.git --depth=1
-fi
 #拉取baseband
 [ -d "Baseband-guard" ] && rm -rf Baseband-guard
 wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash
 
-# 应用 SUSFS 相关补丁
-echo ">>> 应用 SUSFS 及 hook 补丁..."
-# 复制补丁文件
-cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.10.patch .
-cp ./susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next
-cp ./kernel_patches/next/scope_min_manual_hooks_v1.6.patch .
-cp -r ./kernel-config/anykernel .
-cp -r ./kernel-config/tracepoint_hook .
-
-# 复制文件系统相关文件
-cp -r ./susfs4ksu/kernel_patches/fs/* ./fs/
-cp -r ./susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-
-# 应用补丁
-cd ./KernelSU-Next
-patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-cd ..
-patch -p1 < 50_add_susfs_in_gki-android13-5.10.patch || true
-
-# 应用隐藏补丁
-cp ./kernel_patches/69_hide_stuff.patch ./
-patch -p1 -F 3 < 69_hide_stuff.patch
-patch -p1 < scope_min_manual_hooks_v1.6.patch
-
-#susfs修复补丁
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/Makefile.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/allowlist.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/apk_sign.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/kernel_umount.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/ksu.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/ksud.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/selinux.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/sucompat.c.patch ./KernelSU-Next/
-cp ./kernel_patches/next/susfs_fix_patches/v2.0.0/supercalls.c.patch ./KernelSU-Next/
-cd ./KernelSU-Next
-patch -p1 < ./Makefile.patch
-patch -p1 < ./allowlist.c.patch
-patch -p1 < ./apk_sign.c.patch
-patch -p1 < ./kernel_umount.c.patch
-patch -p1 < ./ksu.c.patch
-patch -p1 < ./ksud.c.patch
-patch -p1 < ./selinux.c.patch
-patch -p1 < ./sucompat.c.patch
-patch -p1 < ./supercalls.c.patch
-cd ..
 
 #由于部分机型的vintf兼容性检测规则，在开启CONFIG_IP6_NF_NAT后开机会出现"您的设备内部出现了问题。请联系您的设备制造商了解详情。"的提示，故添加一个配置修复补丁，在编译内核时隐藏CONFIG_IP6_NF_NAT=y但不影响对应功能编译
-#cp ./tracepoint_hook/config.patch ./
+#cp ./kernel-config/tracepoint_hook/config.patch .
 #patch -p1 -F 3 < config.patch || true
 
 echo ">>> 配置内核选项..."
@@ -120,18 +108,6 @@ DEFCONFIG_FILE=arch/arm64/configs/gki_defconfig
 # 定义基础 SUSFS/KSU 配置
 declare -A ksu_configs=(
     ["CONFIG_KSU"]="y"
-    ["CONFIG_KSU_KPROBES_HOOK"]="n"
-    ["CONFIG_KSU_SUSFS"]="y" #susfs
-    ["CONFIG_KSU_SUSFS_SUS_PATH"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_MOUNT"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_MOUNT_MNT_ID_REORDER"]="n"
-    ["CONFIG_KSU_SUSFS_SUS_KSTAT"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_MAPS"]="y"
-    ["CONFIG_KSU_SUSFS_SUS_PROC_FD_LINK"]="n"
-    ["CONFIG_KSU_SUSFS_SUS_MEMFD"]="n"
-    ["CONFIG_KSU_SUSFS_TRY_UMOUNT"]="y"
-    ["CONFIG_KSU_SUSFS_SPOOF_UNAME"]="y"
-    ["CONFIG_KSU_KSU_SUSFS_ENABLE_LOG"]="y"
     ["CONFIG_NETFILTER_XT_MATCH_ADDRTYPE"]="y"
     ["CONFIG_NETFILTER_XT_SET"]="y"
     ["CONFIG_IP_SET"]="y"
@@ -157,6 +133,8 @@ declare -A ksu_configs=(
     ["CONFIG_BBG"]="y"
     ["CONFIG_LSM"]="\"lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,baseband_guard\""
     ["CONFIG_BBG_BLOCK_RECOVERY"]="y"
+    ["CONFIG_REKERNEL"]="y"
+    ["CONFIG_REKERNEL_NETWORK"]="y"
 )
 
 # 写入基础配置
