@@ -52,13 +52,10 @@ if [ $susfs = "true" ]; then
   
   # 应用 SUSFS 相关补丁
   echo ">>> 应用 SUSFS 及 hook 补丁..."
-  # 复制补丁文件
-  cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.10.patch .
-  cp ./susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next
   cd ./KernelSU-Next
-  patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+  patch -p1 --forward < ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch || true
   cd ..
-  patch -p1 < 50_add_susfs_in_gki-android13-5.10.patch || true
+  patch -p1 < ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.10.patch || true
 
   # 复制文件系统相关文件
   cp -r ./susfs4ksu/kernel_patches/fs/* ./fs/
