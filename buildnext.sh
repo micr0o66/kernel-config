@@ -3,9 +3,10 @@ DIR=`readlink -f .`
 MAIN=`readlink -f ${DIR}/..`
 THREAD="-j$(nproc --all)"
 
-export PATH="/home/mic/clang20/bin:$PATH"
+export PATH="/home/microo/android_kernel/clang-r584948/bin:$PATH"
 export CLANG_TRIPLE="aarch64-linux-gnu-"
-export CROSS_COMPILE="${CLANG_TRIPLE}"
+export CROSS_COMPILE=""
+export PYTHON="/home/microo/android_kernel/clang-r584948/python3/bin/python3"
 
 DEFCONFIG="gki_defconfig"
 
